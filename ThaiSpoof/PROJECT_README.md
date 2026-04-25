@@ -12,12 +12,27 @@ New runnable pipeline:
 - `ThaiSpoof/project/models.py` - `small_cnn` baseline and `resnet_lite` improvement model
 - `ThaiSpoof/project/train.py` - training, validation, testing, metrics export
 - `ThaiSpoof/project/run_experiment.py` - command-line entry point
+- `ThaiSpoof/configs/high_perf.json` - editable high-performance run config
 
 The older scripts are left unchanged as reference material.
 
-## Manual Step Required
+## Dataset Layout
 
 Download ThaiSpoof from AI For Thai and place/extract it somewhere on your machine or Google Drive. I cannot complete that download automatically because it requires your AI For Thai account/session.
+
+This workspace currently supports the downloaded local layout directly from the project root:
+
+```text
+ai_frontier/
+  genuine/
+    G1/
+      *.wav
+  Corpus-Spoof-VAJA/
+    Train/
+      *.wav
+    Test/
+      *.wav
+```
 
 The pipeline searches recursively and detects classes from folder names. These names work:
 
@@ -64,14 +79,60 @@ Colab usually already includes TensorFlow, NumPy, and SciPy. If TensorFlow impor
 !pip install tensorflow
 ```
 
+## Quick Check
+
+Inspect the downloaded dataset before feature extraction or training:
+
+```bash
+python3 -m ThaiSpoof.project.run_experiment --data-root . --stage summary
+```
+
+This should report nonzero counts for both `genuine` and `spoof`.
+
+## Presets And Config Files
+
+The runner resolves settings in this order:
+
+1. Built-in defaults.
+2. `--preset`.
+3. JSON `--config`.
+4. Explicit command-line flags.
+
+Available presets:
+
+| Preset | Use case |
+| --- | --- |
+| `smoke` | Tiny wiring check on the Mac before a real run |
+| `mac_small` | Safe MacBook Air M4 baseline |
+| `balanced_medium` | Larger local CPU/RAM run |
+| `high_perf` | Strong workstation or GPU runtime |
+
+Run the tiny smoke path first:
+
+```bash
+python3 -m ThaiSpoof.project.run_experiment \
+  --data-root . \
+  --preset smoke \
+  --stage all
+```
+
 ## Recommended Mac-Sized Run
 
 Use this first on the M4 Air:
 
 ```bash
-python -m ThaiSpoof.project.run_experiment \
-  --data-root /path/to/ThaiSpoofData \
-  --out-dir ThaiSpoof/runs/lfcc_small_mac \
+python3 -m ThaiSpoof.project.run_experiment \
+  --data-root . \
+  --preset mac_small \
+  --stage all
+```
+
+The expanded equivalent is:
+
+```bash
+python3 -m ThaiSpoof.project.run_experiment \
+  --data-root . \
+  --preset mac_small \
   --stage all \
   --feature lfcc \
   --model small_cnn \
@@ -84,62 +145,66 @@ python -m ThaiSpoof.project.run_experiment \
   --epochs 15
 ```
 
-## Recommended Colab Run
+## High-Performance Run
 
-Use this when the dataset is in Google Drive:
+Edit `ThaiSpoof/configs/high_perf.json` when running on a stronger computer. The included config starts with:
 
-```bash
-python -m ThaiSpoof.project.run_experiment \
-  --data-root /content/drive/MyDrive/ThaiSpoofData \
-  --out-dir /content/drive/MyDrive/thaispoof_runs/lfcc_small_colab \
-  --stage all \
-  --feature lfcc \
-  --model small_cnn \
-  --train-genuine 3000 \
-  --train-spoof 3000 \
-  --test-genuine 1500 \
-  --test-spoof 1500 \
-  --dim-x 256 \
-  --batch-size 16 \
-  --epochs 30
+```json
+{
+  "preset": "high_perf",
+  "data_root": ".",
+  "out_dir": "ThaiSpoof/runs/lfcc_high_perf",
+  "feature": "lfcc",
+  "model": "resnet_lite",
+  "train_genuine": 3000,
+  "train_spoof": 3000,
+  "test_genuine": 1500,
+  "test_spoof": 1500,
+  "dim_x": 256,
+  "batch_size": 32,
+  "epochs": 40,
+  "patience": 8
+}
 ```
 
-After the baseline works, run the improvement:
+Run it with:
 
 ```bash
-python -m ThaiSpoof.project.run_experiment \
-  --data-root /content/drive/MyDrive/ThaiSpoofData \
-  --out-dir /content/drive/MyDrive/thaispoof_runs/lfcc_resnet_colab \
-  --stage all \
-  --feature lfcc \
-  --model resnet_lite \
-  --train-genuine 3000 \
-  --train-spoof 3000 \
-  --test-genuine 1500 \
-  --test-spoof 1500 \
-  --dim-x 256 \
-  --batch-size 16 \
-  --epochs 30
+python3 -m ThaiSpoof.project.run_experiment \
+  --config ThaiSpoof/configs/high_perf.json \
+  --stage all
 ```
 
 ## Useful Stages
 
+Summarize detected audio:
+
+```bash
+python3 -m ThaiSpoof.project.run_experiment --data-root . --stage summary
+```
+
 Create only the manifest:
 
 ```bash
-python -m ThaiSpoof.project.run_experiment --data-root /path/to/ThaiSpoofData --stage split
+python3 -m ThaiSpoof.project.run_experiment --data-root . --preset smoke --stage split
 ```
 
 Extract features only:
 
 ```bash
-python -m ThaiSpoof.project.run_experiment --data-root /path/to/ThaiSpoofData --stage extract
+python3 -m ThaiSpoof.project.run_experiment --data-root . --preset smoke --stage extract
 ```
 
 Train from already extracted features:
 
 ```bash
-python -m ThaiSpoof.project.run_experiment --data-root /path/to/ThaiSpoofData --stage train
+python3 -m ThaiSpoof.project.run_experiment --data-root . --preset smoke --stage train
+```
+
+Force a manifest or feature-cache rebuild:
+
+```bash
+python3 -m ThaiSpoof.project.run_experiment --data-root . --preset smoke --stage all --force-split --force-extract
 ```
 
 ## Outputs
@@ -178,6 +243,7 @@ Use the final metrics to fill this table in the report:
 ## Notes
 
 - Start with the Mac-sized run. It is intentionally small so the full pipeline can be debugged quickly.
+- Feature extraction is cached by output directory, feature type, and split counts. Re-running the same config reuses matching pickle files unless `--force-extract` is set.
 - LFCC is the main feature because it matches the anti-spoofing literature better than plain MFCC for this project.
 - `resnet_lite` is the improvement model. It is smaller than a full ResNet34 so it is safer on 16 GB RAM and Colab free runtimes.
 - If your data folders are not detected, rename or wrap the folders so the path contains `genuine` or `spoof`.

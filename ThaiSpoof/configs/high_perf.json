@@ -1,0 +1,15 @@
+{
+  "preset": "high_perf",
+  "data_root": ".",
+  "out_dir": "ThaiSpoof/runs/lfcc_high_perf",
+  "feature": "lfcc",
+  "model": "resnet_lite",
+  "train_genuine": 3000,
+  "train_spoof": 3000,
+  "test_genuine": 1500,
+  "test_spoof": 1500,
+  "dim_x": 256,
+  "batch_size": 32,
+  "epochs": 40,
+  "patience": 8
+}

@@ -80,6 +80,19 @@ class DatasetTest(unittest.TestCase):
         self.assertEqual(summarize_splits(loaded)["train_genuine"], 1)
         self.assertEqual(summarize_splits(loaded)["train_spoof"], 1)
 
+    def test_collect_audio_detects_current_workspace_layout_names(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            touch(root / "genuine" / "G1" / "thai0001.wav")
+            touch(root / "Corpus-Spoof-VAJA" / "Train" / "thai_000001.wav")
+
+            items = collect_audio(root)
+
+        labels = sorted(item.label for item in items)
+        attacks = sorted(item.attack_type for item in items)
+        self.assertEqual(labels, ["genuine", "spoof"])
+        self.assertIn("corpus_spoof_vaja", attacks)
+
 
 if __name__ == "__main__":
     unittest.main()

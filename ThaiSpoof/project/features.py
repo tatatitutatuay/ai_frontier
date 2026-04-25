@@ -206,6 +206,25 @@ def _display_split(split_name: str) -> str:
     return f"{first.capitalize()}_{second}"
 
 
+def feature_groups_exist(
+    out_dir: Path,
+    feature: str,
+    train_genuine: int,
+    train_spoof: int,
+    test_genuine: int,
+    test_spoof: int,
+) -> bool:
+    out_dir = Path(out_dir)
+    prefix = feature.upper()
+    expected = [
+        out_dir / f"{prefix}_Train_genuine_{train_genuine}.pkl",
+        out_dir / f"{prefix}_Train_spoof_{train_spoof}.pkl",
+        out_dir / f"{prefix}_Test_genuine_{test_genuine}.pkl",
+        out_dir / f"{prefix}_Test_spoof_{test_spoof}.pkl",
+    ]
+    return all(path.exists() for path in expected)
+
+
 def save_feature_groups(splits: dict[str, list[AudioItem]], out_dir: Path, feature: str, target_sr: int) -> None:
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
