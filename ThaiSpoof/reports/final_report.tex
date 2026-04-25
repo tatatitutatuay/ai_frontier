@@ -1,0 +1,162 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{microtype}
+\usepackage{array}
+\usepackage{xcolor}
+
+\geometry{margin=1in}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue,
+  urlcolor=blue,
+  citecolor=blue
+}
+
+\title{Voice Anti-Spoofing with ThaiSpoof}
+\author{Biometrics Mini-Project}
+\date{April 2026}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+This project studies Thai voice anti-spoofing as a binary classification task: each utterance is classified as either genuine speech or spoofed speech. The experiment uses balanced subsets of ThaiSpoof-style genuine and spoofed audio, extracts cepstral acoustic features, and compares lightweight CNN-based models that can run on a MacBook Air M4 with 16 GB RAM. On the selected Mac-sized subset, LFCC with a small CNN, LFCC with a lightweight ResNet, and MFCC with a small CNN all achieved 1.000 test accuracy, 1.000 F1-score, and 0.000 EER. These results show that the selected subset is highly separable, but they should be interpreted carefully because perfect performance may reflect dataset-source artifacts as well as true spoofing cues.
+\end{abstract}
+
+\section{Introduction}
+
+Voice biometric systems are vulnerable to spoofing attacks from synthetic speech, voice conversion, and other generated audio. This project studies voice anti-spoofing as a binary classification problem: classify each utterance as either genuine speech or spoofed speech.
+
+The goal is to build a practical experiment pipeline that can run on a MacBook Air M4 with 16 GB RAM while still producing results suitable for comparison in a biometrics mini-project.
+
+\section{Dataset}
+
+The project uses ThaiSpoof-style Thai speech data from the downloaded local folders under \texttt{data/raw/}:
+
+\begin{itemize}
+  \item \texttt{data/raw/genuine/} for bona fide human speech
+  \item \texttt{data/raw/Corpus-Spoof-VAJA/} for spoofed speech
+\end{itemize}
+
+The full available local dataset contains 4,583 genuine files and 4,583 spoof files. A balanced subset was used to keep training practical on local CPU hardware.
+
+\begin{table}[h]
+\centering
+\caption{Balanced subset used for the Mac-sized experiments.}
+\label{tab:dataset-split}
+\begin{tabular}{lrrr}
+\toprule
+Split & Genuine & Spoof & Total \\
+\midrule
+Train & 800 & 800 & 1,600 \\
+Validation & 200 & 200 & 400 \\
+Test & 500 & 500 & 1,000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The train and validation rows come from a 1,000 genuine + 1,000 spoof training subset with a 20\% validation split. The test set uses 500 genuine + 500 spoof files.
+
+\section{Feature Extraction}
+
+Two cepstral feature types were compared:
+
+\begin{itemize}
+  \item \textbf{LFCC}: linear-frequency cepstral coefficients. LFCC is commonly used in anti-spoofing research because linear-frequency spacing can preserve high-frequency artifacts that help reveal synthetic speech.
+  \item \textbf{MFCC}: mel-frequency cepstral coefficients. MFCC is a common speech-processing baseline and was used as an optional comparison.
+\end{itemize}
+
+Each audio file was converted into a fixed-size feature matrix. Short utterances were repeated to reach the target frame length, while long utterances were truncated.
+
+\section{Models}
+
+Three experiments were run:
+
+\begin{table}[h]
+\centering
+\caption{Experiment configurations.}
+\label{tab:experiments}
+\begin{tabular}{llll}
+\toprule
+Experiment & Feature & Model & Purpose \\
+\midrule
+Baseline & LFCC & \texttt{small\_cnn} & Main lightweight baseline \\
+Improvement & LFCC & \texttt{resnet\_lite} & Deeper residual CNN comparison \\
+Optional & MFCC & \texttt{small\_cnn} & Feature comparison against LFCC \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The models were trained with small batch sizes and early-stopping support to fit the compute budget.
+
+\section{Evaluation Metrics}
+
+The project reports accuracy, balanced accuracy, precision, recall, F1-score, Equal Error Rate (EER), and confusion matrix counts. Spoof speech is treated as the positive class.
+
+\section{Results}
+
+Table~\ref{tab:results} reports test split performance. All three model-feature combinations achieved perfect classification on the selected test subset.
+
+\begin{table}[h]
+\centering
+\caption{Test split results.}
+\label{tab:results}
+\begin{tabular}{lllrrrrr}
+\toprule
+Experiment & Feature & Model & Accuracy & Precision & Recall & F1 & EER \\
+\midrule
+Baseline & LFCC & \texttt{small\_cnn} & 1.000 & 1.000 & 1.000 & 1.000 & 0.000 \\
+Improvement & LFCC & \texttt{resnet\_lite} & 1.000 & 1.000 & 1.000 & 1.000 & 0.000 \\
+Optional & MFCC & \texttt{small\_cnn} & 1.000 & 1.000 & 1.000 & 1.000 & 0.000 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Test split confusion matrix counts. Spoof is the positive class.}
+\label{tab:confusion}
+\begin{tabular}{lrrrr}
+\toprule
+Experiment & TN & FP & FN & TP \\
+\midrule
+LFCC + \texttt{small\_cnn} & 500 & 0 & 0 & 500 \\
+LFCC + \texttt{resnet\_lite} & 500 & 0 & 0 & 500 \\
+MFCC + \texttt{small\_cnn} & 500 & 0 & 0 & 500 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Discussion}
+
+All three experiments achieved perfect test-set performance on the selected balanced subset. This means the models separated the downloaded genuine and spoof files without any observed classification errors.
+
+The result is strong, but it should be interpreted carefully. Perfect performance can happen when spoofed speech has clear artifacts, but it can also indicate that the classifier is learning dataset-source differences rather than general spoofing cues. For example, genuine files and spoof files may differ in generation pipeline, file structure, acoustic channel, duration distribution, or other metadata-related artifacts.
+
+The LFCC baseline and ResNet-lite improvement produced the same final test metrics. Because the lightweight CNN already reached perfect accuracy and EER, the deeper residual model did not show measurable improvement on this subset. MFCC also reached the same score, suggesting that this local subset may be easy to separate with standard cepstral features.
+
+\section{Limitations}
+
+\begin{itemize}
+  \item The full dataset was not used; experiments used a balanced subset suitable for a MacBook Air M4.
+  \item The test split comes from the same downloaded data source as the training split, so it may not measure cross-dataset generalization.
+  \item Perfect scores may reflect source or synthesis artifacts specific to this dataset subset.
+  \item Fixed-size feature matrices truncate long utterances and repeat short utterances.
+  \item Training used local CPU-friendly model sizes rather than large anti-spoofing architectures.
+\end{itemize}
+
+\section{Conclusion}
+
+The project successfully built a practical Thai voice anti-spoofing pipeline using balanced genuine and spoof subsets, cached acoustic feature extraction, and lightweight CNN-based classifiers.
+
+On the selected Mac-sized subset, all tested configurations reached 100\% test accuracy, 1.000 F1-score, and 0.000 EER. The best practical choice is therefore the LFCC + \texttt{small\_cnn} baseline because it achieved the same performance as the deeper model with lower complexity.
+
+Future work should test on a larger and more diverse split, evaluate cross-source generalization, and include additional spoof types such as subtle F0 modification or small pitch-shift attacks to check whether the perfect subset performance remains robust.
+
+\end{document}
