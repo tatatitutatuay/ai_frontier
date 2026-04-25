@@ -54,10 +54,17 @@ def config_from_args(args: argparse.Namespace) -> ExperimentConfig:
     )
 
 
+def _manifest_paths_exist(splits) -> bool:
+    return all(item.path.exists() for rows in splits.values() for item in rows)
+
+
 def create_or_load_splits(config: ExperimentConfig, force_create: bool = False):
     if config.manifest_path.exists() and not force_create:
         logging.info("Using existing manifest: %s", config.manifest_path)
-        return read_manifest(config.manifest_path)
+        splits = read_manifest(config.manifest_path)
+        if _manifest_paths_exist(splits):
+            return splits
+        logging.info("Existing manifest has stale audio paths; rebuilding it.")
 
     items = collect_audio(config.data_root)
     splits = split_balanced(

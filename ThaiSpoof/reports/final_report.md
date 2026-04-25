@@ -8,10 +8,10 @@ The goal is to build a practical experiment pipeline that can run on a MacBook A
 
 ## 2. Dataset
 
-The project uses ThaiSpoof-style Thai speech data from the downloaded local folders:
+The project uses ThaiSpoof-style Thai speech data from the downloaded local folders under `data/raw/`:
 
-- `genuine/` for bona fide human speech
-- `Corpus-Spoof-VAJA/` for spoofed speech
+- `data/raw/genuine/` for bona fide human speech
+- `data/raw/Corpus-Spoof-VAJA/` for spoofed speech
 
 The full available local dataset contains 4,583 genuine files and 4,583 spoof files. A balanced subset was used to keep training practical on local CPU hardware.
 

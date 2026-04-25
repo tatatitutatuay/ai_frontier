@@ -76,13 +76,17 @@ Constraints:
 ## Existing Workspace Files
 
 Current useful files:
-- `ThaiSpoof/extract_lfcc.py`
-- `ThaiSpoof/extract_mfcc.py`
-- `ThaiSpoof/LFCC_pipeline.py`
-- `ThaiSpoof/MFCC_pipeline.py`
-- `ThaiSpoof/lcnn.py`
-- `ThaiSpoof/resnet.py`
-- `ThaiSpoof/lfcc_resnet_set.py`
+- `ThaiSpoof/project/run_experiment.py`
+- `ThaiSpoof/project/config.py`
+- `ThaiSpoof/project/dataset.py`
+- `ThaiSpoof/project/features.py`
+- `ThaiSpoof/project/models.py`
+- `ThaiSpoof/project/train.py`
+- `ThaiSpoof/configs/high_perf.json`
+- `ThaiSpoof/reports/final_report.md`
+
+Older reference scripts are now grouped in:
+- `ThaiSpoof/legacy/`
 
 Before running experiments, update scripts so dataset paths, output paths, sample counts, feature type, batch size, and epochs can be changed from config variables or command-line arguments.
 

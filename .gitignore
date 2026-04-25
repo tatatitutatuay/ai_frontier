@@ -1,6 +1,5 @@
 # Dataset folders (large, binary data)
-Corpus-Spoof-VAJA/
-genuine/
+data/raw/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

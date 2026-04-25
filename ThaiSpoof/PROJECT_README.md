@@ -13,25 +13,29 @@ New runnable pipeline:
 - `ThaiSpoof/project/train.py` - training, validation, testing, metrics export
 - `ThaiSpoof/project/run_experiment.py` - command-line entry point
 - `ThaiSpoof/configs/high_perf.json` - editable high-performance run config
+- `ThaiSpoof/reports/final_report.md` - final report with experiment results
+- `ThaiSpoof/legacy/` - older scripts kept for reference
 
-The older scripts are left unchanged as reference material.
+The older scripts are grouped under `ThaiSpoof/legacy/` as reference material.
 
 ## Dataset Layout
 
 Download ThaiSpoof from AI For Thai and place/extract it somewhere on your machine or Google Drive. I cannot complete that download automatically because it requires your AI For Thai account/session.
 
-This workspace currently supports the downloaded local layout directly from the project root:
+This workspace currently keeps raw audio under `data/raw/`:
 
 ```text
 ai_frontier/
-  genuine/
-    G1/
-      *.wav
-  Corpus-Spoof-VAJA/
-    Train/
-      *.wav
-    Test/
-      *.wav
+  data/
+    raw/
+      genuine/
+        G1/
+          *.wav
+      Corpus-Spoof-VAJA/
+        Train/
+          *.wav
+        Test/
+          *.wav
 ```
 
 The pipeline searches recursively and detects classes from folder names. These names work:
@@ -84,7 +88,7 @@ Colab usually already includes TensorFlow, NumPy, and SciPy. If TensorFlow impor
 Inspect the downloaded dataset before feature extraction or training:
 
 ```bash
-python3 -m ThaiSpoof.project.run_experiment --data-root . --stage summary
+python3 -m ThaiSpoof.project.run_experiment --stage summary
 ```
 
 This should report nonzero counts for both `genuine` and `spoof`.
@@ -111,7 +115,6 @@ Run the tiny smoke path first:
 
 ```bash
 python3 -m ThaiSpoof.project.run_experiment \
-  --data-root . \
   --preset smoke \
   --stage all
 ```
@@ -122,7 +125,6 @@ Use this first on the M4 Air:
 
 ```bash
 python3 -m ThaiSpoof.project.run_experiment \
-  --data-root . \
   --preset mac_small \
   --stage all
 ```
@@ -131,7 +133,6 @@ The expanded equivalent is:
 
 ```bash
 python3 -m ThaiSpoof.project.run_experiment \
-  --data-root . \
   --preset mac_small \
   --stage all \
   --feature lfcc \
@@ -152,7 +153,7 @@ Edit `ThaiSpoof/configs/high_perf.json` when running on a stronger computer. The
 ```json
 {
   "preset": "high_perf",
-  "data_root": ".",
+  "data_root": "data/raw",
   "out_dir": "ThaiSpoof/runs/lfcc_high_perf",
   "feature": "lfcc",
   "model": "resnet_lite",
@@ -180,31 +181,31 @@ python3 -m ThaiSpoof.project.run_experiment \
 Summarize detected audio:
 
 ```bash
-python3 -m ThaiSpoof.project.run_experiment --data-root . --stage summary
+python3 -m ThaiSpoof.project.run_experiment --stage summary
 ```
 
 Create only the manifest:
 
 ```bash
-python3 -m ThaiSpoof.project.run_experiment --data-root . --preset smoke --stage split
+python3 -m ThaiSpoof.project.run_experiment --preset smoke --stage split
 ```
 
 Extract features only:
 
 ```bash
-python3 -m ThaiSpoof.project.run_experiment --data-root . --preset smoke --stage extract
+python3 -m ThaiSpoof.project.run_experiment --preset smoke --stage extract
 ```
 
 Train from already extracted features:
 
 ```bash
-python3 -m ThaiSpoof.project.run_experiment --data-root . --preset smoke --stage train
+python3 -m ThaiSpoof.project.run_experiment --preset smoke --stage train
 ```
 
 Force a manifest or feature-cache rebuild:
 
 ```bash
-python3 -m ThaiSpoof.project.run_experiment --data-root . --preset smoke --stage all --force-split --force-extract
+python3 -m ThaiSpoof.project.run_experiment --preset smoke --stage all --force-split --force-extract
 ```
 
 ## Outputs
