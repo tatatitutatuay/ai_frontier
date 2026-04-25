@@ -92,3 +92,6 @@ pip-wheel-metadata/
 # Editors
 *.swp
 .idea/
+
+ThaiSpoof/reports/*
+ThaiSpoof/reports/!*.tex
