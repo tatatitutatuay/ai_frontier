@@ -76,6 +76,7 @@ venv.bak/
 models/
 checkpoints/
 outputs/
+ThaiSpoof/runs/
 
 # Project-specific folders
 Train/
@@ -92,4 +93,3 @@ pip-wheel-metadata/
 # Editors
 *.swp
 .idea/
-
