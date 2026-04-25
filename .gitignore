@@ -1,0 +1,95 @@
+# Dataset folders (large, binary data)
+Corpus-Spoof-VAJA/
+genuine/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+.nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# pyenv
+.python-version
+
+# virtualenv / venv
+venv/
+ENV/
+env/
+.venv/
+env.bak/
+venv.bak/
+
+# VS Code
+.vscode/
+
+# macOS
+.DS_Store
+
+# Logs and databases
+*.log
+*.sqlite3
+
+# Models, checkpoints, outputs
+models/
+checkpoints/
+outputs/
+
+# Project-specific folders
+Train/
+Test/
+
+# Misc
+*/_pycache_
+*.pyc
+
+# Ignore virtual environment files created by common tools
+.venv/
+pip-wheel-metadata/
+
+# Editors
+*.swp
+.idea/
+

@@ -1,0 +1,1 @@
+"""ThaiSpoof project utilities."""
