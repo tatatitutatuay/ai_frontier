@@ -1,5 +1,6 @@
 # Dataset folders (large, binary data)
 data/raw/
+/data
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
