@@ -26,7 +26,7 @@
 \maketitle
 
 \begin{abstract}
-This project studies Thai voice anti-spoofing as a binary classification task: each utterance is classified as either genuine speech or spoofed speech. The experiment uses balanced subsets of ThaiSpoof-style genuine and spoofed audio, extracts cepstral acoustic features, and compares lightweight CNN-based models that can run on a MacBook Air M4 with 16 GB RAM. On the selected Mac-sized subset, LFCC with a small CNN, LFCC with a lightweight ResNet, and MFCC with a small CNN all achieved 1.000 test accuracy, 1.000 F1-score, and 0.000 EER. These results show that the selected subset is highly separable, but they should be interpreted carefully because perfect performance may reflect dataset-source artifacts as well as true spoofing cues.
+This project studies Thai voice anti-spoofing as a binary classification task: each utterance is classified as either genuine speech or spoofed speech. The experiment uses balanced subsets of ThaiSpoof-style genuine and spoofed audio, extracts cepstral acoustic features, and compares lightweight CNN-based models that can run on a MacBook Air M4 with 16 GB RAM. On the first VAJA spoof subset, LFCC with a small CNN, LFCC with a lightweight ResNet, and MFCC with a small CNN all achieved 1.000 test accuracy, 1.000 F1-score, and 0.000 EER. A harder F0-10 modification subset was then added; the same LFCC + small CNN setup reached 0.909 test accuracy, 0.908 F1-score, and 0.094 EER. However, the F0-10-trained model failed to generalize to VAJA/TTS spoof data, detecting 0 of 500 TTS spoof files at the default threshold. A multi-attack LFCC + small CNN model trained on both VAJA/TTS and F0-10 reached 0.960 mixed-test accuracy and 0.037 EER, showing that multi-attack training is necessary for more robust spoof detection.
 \end{abstract}
 
 \section{Introduction}
@@ -42,9 +42,25 @@ The project uses ThaiSpoof-style Thai speech data from the downloaded local fold
 \begin{itemize}
   \item \texttt{data/raw/genuine/} for bona fide human speech
   \item \texttt{data/raw/Corpus-Spoof-VAJA/} for spoofed speech
+  \item \texttt{data/raw/F0\_10/} for F0-modified spoofed speech
 \end{itemize}
 
-The full available local dataset contains 4,583 genuine files and 4,583 spoof files. A balanced subset was used to keep training practical on local CPU hardware.
+The available local dataset now contains 4,583 genuine files, 4,583 VAJA spoof files, and 4,583 F0-10 spoof files. Balanced subsets were used to keep training practical on local CPU hardware.
+
+\begin{table}[h]
+\centering
+\caption{Detected local dataset sources after adding F0-10.}
+\label{tab:dataset-sources}
+\begin{tabular}{lr}
+\toprule
+Source / attack type & Files \\
+\midrule
+Genuine & 4,583 \\
+VAJA TTS spoof & 4,583 \\
+F0-10 modification spoof & 4,583 \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \begin{table}[h]
 \centering
@@ -101,7 +117,7 @@ The project reports accuracy, balanced accuracy, precision, recall, F1-score, Eq
 
 \section{Results}
 
-Table~\ref{tab:results} reports test split performance. All three model-feature combinations achieved perfect classification on the selected test subset.
+Table~\ref{tab:results} reports test split performance for the first VAJA-source spoof subset. All three model-feature combinations achieved perfect classification on the selected test subset.
 
 \begin{table}[h]
 \centering
@@ -133,20 +149,109 @@ MFCC + \texttt{small\_cnn} & 500 & 0 & 0 & 500 \\
 \end{tabular}
 \end{table}
 
+\subsection{Harder F0-10 Spoof Test}
+
+The next-level experiment isolated the F0-10 attack by filtering the spoof class to \texttt{f0\_10}. This avoided mixing the easier VAJA spoof data with the harder F0-modified files. The run used the Mac-safe LFCC + \texttt{small\_cnn} configuration: 1,000 genuine and 1,000 F0-10 files for training, a 20\% validation split, and 500 genuine plus 500 F0-10 files for testing.
+
+\begin{table}[h]
+\centering
+\caption{F0-10 test split result with LFCC + \texttt{small\_cnn}.}
+\label{tab:f0-results}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Attack & Accuracy & Precision & Recall & F1 & EER & FP & FN \\
+\midrule
+F0-10 & 0.909 & 0.922 & 0.894 & 0.908 & 0.094 & 38 & 53 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{F0-10 confusion matrix counts. Spoof is the positive class.}
+\label{tab:f0-confusion}
+\begin{tabular}{lrrrr}
+\toprule
+Experiment & TN & FP & FN & TP \\
+\midrule
+LFCC + \texttt{small\_cnn} & 462 & 38 & 53 & 447 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Cross-Attack Test: F0-10 Model on TTS}
+
+To test generalization, the LFCC + \texttt{small\_cnn} model trained on F0-10 was evaluated on the earlier VAJA/TTS test split. The evaluation set contained 500 genuine files and 500 VAJA/TTS spoof files. No additional training was performed.
+
+\begin{table}[h]
+\centering
+\caption{Cross-attack result: F0-10-trained model evaluated on VAJA/TTS spoof data.}
+\label{tab:cross-attack}
+\begin{tabular}{lrrrrrrrrr}
+\toprule
+Evaluation & Accuracy & Precision & Recall & F1 & EER & TN & FP & FN & TP \\
+\midrule
+F0-10 model on TTS & 0.462 & 0.000 & 0.000 & 0.000 & 0.906 & 462 & 38 & 500 & 0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+At the default threshold, the model classified all 500 TTS spoof files as genuine, giving 500 false negatives. The mean spoof score for genuine files was 0.177, while the mean spoof score for TTS files was only 0.007. This means the F0-10 model learned cues specific to F0 modification rather than cues that transfer to the TTS attack.
+
+\subsection{Multi-Attack Training}
+
+A final Mac-safe experiment trained one LFCC + \texttt{small\_cnn} model on both spoof attacks together. The spoof training split was attack-balanced: 1,000 VAJA/TTS files and 1,000 F0-10 files. The test spoof split was also attack-balanced: 500 VAJA/TTS files and 500 F0-10 files. The genuine side used 2,000 training files and 1,000 test files.
+
+\begin{table}[h]
+\centering
+\caption{Multi-attack LFCC + \texttt{small\_cnn} mixed test result.}
+\label{tab:multi-attack-overall}
+\begin{tabular}{lrrrrrrrr}
+\toprule
+Experiment & Accuracy & Precision & Recall & F1 & EER & TN & FP & FN \\
+\midrule
+TTS + F0-10 & 0.960 & 0.950 & 0.970 & 0.960 & 0.037 & 949 & 51 & 30 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{table}[h]
+\centering
+\caption{Multi-attack model evaluated separately by spoof attack. Each row uses the same 1,000 held-out genuine files and 500 held-out spoof files from that attack.}
+\label{tab:multi-attack-breakdown}
+\begin{tabular}{lrrrrrrr}
+\toprule
+Attack & Accuracy & Precision & Recall & F1 & EER & FP & FN \\
+\midrule
+VAJA/TTS & 0.966 & 0.907 & 1.000 & 0.951 & 0.000 & 51 & 0 \\
+F0-10 & 0.946 & 0.902 & 0.940 & 0.921 & 0.056 & 51 & 30 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The multi-attack model fixed the earlier transfer failure: it detected all 500 held-out TTS spoof files while still detecting 470 of 500 held-out F0-10 spoof files. The remaining errors mostly come from F0-10 false negatives and genuine files incorrectly marked as spoof.
+
 \section{Discussion}
 
-All three experiments achieved perfect test-set performance on the selected balanced subset. This means the models separated the downloaded genuine and spoof files without any observed classification errors.
+The first three VAJA experiments achieved perfect test-set performance on the selected balanced subset. This means the models separated the downloaded genuine and VAJA spoof files without any observed classification errors.
 
 The result is strong, but it should be interpreted carefully. Perfect performance can happen when spoofed speech has clear artifacts, but it can also indicate that the classifier is learning dataset-source differences rather than general spoofing cues. For example, genuine files and spoof files may differ in generation pipeline, file structure, acoustic channel, duration distribution, or other metadata-related artifacts.
 
-The LFCC baseline and ResNet-lite improvement produced the same final test metrics. Because the lightweight CNN already reached perfect accuracy and EER, the deeper residual model did not show measurable improvement on this subset. MFCC also reached the same score, suggesting that this local subset may be easy to separate with standard cepstral features.
+The LFCC baseline and ResNet-lite improvement produced the same final VAJA metrics. Because the lightweight CNN already reached perfect accuracy and EER, the deeper residual model did not show measurable improvement on that subset. MFCC also reached the same score, suggesting that the VAJA subset may be easy to separate with standard cepstral features.
+
+The F0-10 experiment is more informative. Its 0.909 accuracy and 0.094 EER show that subtle F0 modification is harder than the VAJA spoof subset for the current model. The model still learns useful cues, but the errors show that this attack is closer to genuine speech and should be included when evaluating whether the system generalizes beyond obvious synthetic-speech artifacts.
+
+The cross-attack result is the strongest warning. A model trained only on F0-10 did not transfer to TTS; it detected none of the TTS spoof files at the default threshold. This suggests that separate spoof attacks can occupy very different regions of the feature space. A practical anti-spoofing system should therefore train on multiple attack types together and reserve at least one attack type for unseen-attack evaluation.
+
+The multi-attack experiment confirms this direction. Training on both VAJA/TTS and F0-10 together improved robustness compared with the F0-only transfer test. It did not return to perfect performance, which is a healthier and more realistic result: the model now handles both attacks, while the F0-10 subset remains the harder part of the benchmark.
 
 \section{Limitations}
 
 \begin{itemize}
   \item The full dataset was not used; experiments used a balanced subset suitable for a MacBook Air M4.
   \item The test split comes from the same downloaded data source as the training split, so it may not measure cross-dataset generalization.
-  \item Perfect scores may reflect source or synthesis artifacts specific to this dataset subset.
+  \item Perfect scores on the VAJA subset may reflect source or synthesis artifacts specific to that dataset subset.
+  \item The F0-10 model did not generalize to TTS, so single-attack results should not be treated as robust anti-spoofing performance.
   \item Fixed-size feature matrices truncate long utterances and repeat short utterances.
   \item Training used local CPU-friendly model sizes rather than large anti-spoofing architectures.
 \end{itemize}
@@ -155,8 +260,8 @@ The LFCC baseline and ResNet-lite improvement produced the same final test metri
 
 The project successfully built a practical Thai voice anti-spoofing pipeline using balanced genuine and spoof subsets, cached acoustic feature extraction, and lightweight CNN-based classifiers.
 
-On the selected Mac-sized subset, all tested configurations reached 100\% test accuracy, 1.000 F1-score, and 0.000 EER. The best practical choice is therefore the LFCC + \texttt{small\_cnn} baseline because it achieved the same performance as the deeper model with lower complexity.
+On the selected VAJA Mac-sized subset, all tested configurations reached 100\% test accuracy, 1.000 F1-score, and 0.000 EER. The best practical choice for that subset is therefore the LFCC + \texttt{small\_cnn} baseline because it achieved the same performance as the deeper model with lower complexity.
 
-Future work should test on a larger and more diverse split, evaluate cross-source generalization, and include additional spoof types such as subtle F0 modification or small pitch-shift attacks to check whether the perfect subset performance remains robust.
+After adding F0-10, the same LFCC + \texttt{small\_cnn} baseline reached 0.909 test accuracy, 0.908 F1-score, and 0.094 EER. This is a better stress test and should be treated as the next benchmark for improvement. When the F0-10 model was tested on TTS spoof data, it detected 0 of 500 TTS samples, showing poor cross-attack generalization. Training on both TTS and F0-10 together improved the mixed-test result to 0.960 accuracy, 0.960 F1-score, and 0.037 EER. Future work should test the remaining F0 levels and pitch-shift attacks, evaluate unseen attacks, and run larger high-performance configurations.
 
 \end{document}

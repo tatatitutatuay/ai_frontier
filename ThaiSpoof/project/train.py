@@ -20,7 +20,8 @@ class _NumpyCoreCompatUnpickler(pickle.Unpickler):
 
 def load_pickle_list(path: Path):
     with Path(path).open("rb") as handle:
-        obj = _NumpyCoreCompatUnpickler(io.BufferedReader(handle)).load()
+        with io.BufferedReader(handle) as buffered:
+            obj = _NumpyCoreCompatUnpickler(buffered).load()
     if not isinstance(obj, (list, tuple)):
         raise ValueError(f"expected a list of feature matrices in {path}")
     return list(obj)

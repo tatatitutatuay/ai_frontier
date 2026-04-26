@@ -1,0 +1,16 @@
+{
+  "preset": "mac_small",
+  "data_root": "data/raw",
+  "out_dir": "ThaiSpoof/runs/lfcc_f0_10_mac",
+  "feature": "lfcc",
+  "model": "small_cnn",
+  "spoof_attack": "f0_10",
+  "train_genuine": 1000,
+  "train_spoof": 1000,
+  "test_genuine": 500,
+  "test_spoof": 500,
+  "dim_x": 192,
+  "batch_size": 8,
+  "epochs": 15,
+  "patience": 4
+}

@@ -14,10 +14,32 @@ class ExperimentConfigTest(unittest.TestCase):
                 out_dir=Path(tmp) / "out",
                 feature="LFCC",
                 model="Small_CNN",
+                spoof_attack="F0-10",
             )
 
         self.assertEqual(cfg.feature, "lfcc")
         self.assertEqual(cfg.model, "small_cnn")
+        self.assertEqual(cfg.spoof_attack, "f0_10")
+
+    def test_normalizes_multiple_spoof_attacks(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            cfg = ExperimentConfig(
+                data_root=Path(tmp) / "data",
+                out_dir=Path(tmp) / "out",
+                spoof_attacks=["F0-10", "Corpus Spoof VAJA"],
+            )
+
+        self.assertEqual(cfg.spoof_attacks, ("f0_10", "corpus_spoof_vaja"))
+
+    def test_rejects_single_and_multiple_spoof_attack_filters_together(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(ValueError):
+                ExperimentConfig(
+                    data_root=Path(tmp) / "data",
+                    out_dir=Path(tmp) / "out",
+                    spoof_attack="f0_10",
+                    spoof_attacks=["corpus_spoof_vaja"],
+                )
 
     def test_rejects_non_positive_subset_counts(self):
         with tempfile.TemporaryDirectory() as tmp:

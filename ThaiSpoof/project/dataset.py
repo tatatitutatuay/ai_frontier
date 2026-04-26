@@ -41,9 +41,25 @@ def normalize_token(value: str) -> str:
     return value.strip().replace("-", "_").replace(" ", "_").lower()
 
 
+def _canonical_spoof_attack(token: str) -> str | None:
+    if token == "f0" or token.startswith("f0_"):
+        parts = token.split("_")
+        if len(parts) >= 2 and parts[1].isdigit():
+            return f"f0_{parts[1]}"
+        return token
+    if token.startswith("pitch_shift") or token.startswith("pitchshift"):
+        return token
+    if token.startswith("speed_change") or token.startswith("speedchange"):
+        return token
+    return None
+
+
 def _label_from_parts(parts: Iterable[str]) -> tuple[str | None, str | None]:
     for part in parts:
         token = normalize_token(part)
+        spoof_attack = _canonical_spoof_attack(token)
+        if spoof_attack:
+            return "spoof", spoof_attack
         for label, aliases in CLASS_ALIASES.items():
             if token in aliases:
                 return label, token
@@ -94,6 +110,11 @@ def _choose_train_test(pool: list[AudioItem], train_count: int, test_count: int,
     return shuffled[:scaled_train], shuffled[scaled_train:scaled_train + scaled_test]
 
 
+def _allocate_counts(total: int, bucket_count: int) -> list[int]:
+    base, remainder = divmod(total, bucket_count)
+    return [base + (1 if idx < remainder else 0) for idx in range(bucket_count)]
+
+
 def split_balanced(
     items: list[AudioItem],
     train_genuine: int,
@@ -114,6 +135,48 @@ def split_balanced(
     train_g, test_g = _choose_train_test(genuine, train_genuine, test_genuine, rng)
     train_s, test_s = _choose_train_test(spoof, train_spoof, test_spoof, rng)
 
+    return {
+        "train_genuine": train_g,
+        "train_spoof": train_s,
+        "test_genuine": test_g,
+        "test_spoof": test_s,
+    }
+
+
+def split_balanced_by_spoof_attack(
+    items: list[AudioItem],
+    train_genuine: int,
+    test_genuine: int,
+    train_spoof: int,
+    test_spoof: int,
+    spoof_attacks: Iterable[str],
+    seed: int = 42,
+) -> dict[str, list[AudioItem]]:
+    attacks = list(spoof_attacks)
+    if not attacks:
+        return split_balanced(items, train_genuine, test_genuine, train_spoof, test_spoof, seed)
+
+    genuine = [item for item in items if item.label == "genuine"]
+    if not genuine:
+        raise ValueError("no genuine audio files were found")
+
+    rng = random.Random(seed)
+    train_g, test_g = _choose_train_test(genuine, train_genuine, test_genuine, rng)
+    train_s: list[AudioItem] = []
+    test_s: list[AudioItem] = []
+    train_allocations = _allocate_counts(train_spoof, len(attacks))
+    test_allocations = _allocate_counts(test_spoof, len(attacks))
+
+    for attack, train_count, test_count in zip(attacks, train_allocations, test_allocations):
+        pool = [item for item in items if item.label == "spoof" and item.attack_type == attack]
+        if not pool:
+            raise ValueError(f"no spoof audio files were found for attack/source: {attack}")
+        attack_train, attack_test = _choose_train_test(pool, train_count, test_count, rng)
+        train_s.extend(attack_train)
+        test_s.extend(attack_test)
+
+    rng.shuffle(train_s)
+    rng.shuffle(test_s)
     return {
         "train_genuine": train_g,
         "train_spoof": train_s,

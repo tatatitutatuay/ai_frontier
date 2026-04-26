@@ -43,12 +43,36 @@ Run the Mac-sized baseline:
 python -m ThaiSpoof.project.run_experiment --preset mac_small --stage all
 ```
 
+Run the harder F0-10 spoof experiment on this Mac:
+
+```bash
+python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/f0_10_mac.json --stage all
+```
+
+Run the Mac-sized multi-attack experiment:
+
+```bash
+python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/multi_attack_mac.json --stage all
+```
+
 Run the high-performance config:
 
 ```bash
 python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/high_perf.json --stage all
 ```
 
+Run the larger F0-10 config on a high-performance machine:
+
+```bash
+python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/f0_10_high_perf.json --stage all
+```
+
+Run the larger multi-attack config on a high-performance machine:
+
+```bash
+python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/multi_attack_high_perf.json --stage all
+```
+
 ## Final Report
 
-The completed report is in `ThaiSpoof/reports/final_report.md`.
+The completed report is in `ThaiSpoof/reports/final_report.tex`.

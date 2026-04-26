@@ -5,9 +5,30 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Mapping
 
+from ThaiSpoof.project.dataset import normalize_token
+
 
 SUPPORTED_FEATURES = {"lfcc", "mfcc"}
 SUPPORTED_MODELS = {"small_cnn", "resnet_lite"}
+
+
+def _normalize_spoof_attacks(value: Any) -> tuple[str, ...]:
+    if value is None:
+        return ()
+    if isinstance(value, str):
+        raw_values = value.split(",")
+    else:
+        raw_values = list(value)
+
+    attacks = []
+    seen = set()
+    for raw in raw_values:
+        token = normalize_token(str(raw))
+        if not token or token in seen:
+            continue
+        attacks.append(token)
+        seen.add(token)
+    return tuple(attacks)
 
 
 @dataclass(frozen=True)
@@ -16,6 +37,8 @@ class ExperimentConfig:
     out_dir: Path = Path("ThaiSpoof/runs/thaispoof_lfcc")
     feature: str = "lfcc"
     model: str = "small_cnn"
+    spoof_attack: str | None = None
+    spoof_attacks: tuple[str, ...] = ()
     train_genuine: int = 3000
     test_genuine: int = 1500
     train_spoof: int = 3000
@@ -35,6 +58,11 @@ class ExperimentConfig:
         object.__setattr__(self, "out_dir", Path(self.out_dir).expanduser())
         object.__setattr__(self, "feature", self.feature.lower())
         object.__setattr__(self, "model", self.model.lower())
+        object.__setattr__(self, "spoof_attacks", _normalize_spoof_attacks(self.spoof_attacks))
+        if self.spoof_attack is not None:
+            object.__setattr__(self, "spoof_attack", normalize_token(self.spoof_attack))
+        if self.spoof_attack and self.spoof_attacks:
+            raise ValueError("use either spoof_attack or spoof_attacks, not both")
 
         if self.feature not in SUPPORTED_FEATURES:
             raise ValueError(f"feature must be one of {sorted(SUPPORTED_FEATURES)}")

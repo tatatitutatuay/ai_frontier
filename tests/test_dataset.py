@@ -93,6 +93,18 @@ class DatasetTest(unittest.TestCase):
         self.assertEqual(labels, ["genuine", "spoof"])
         self.assertIn("corpus_spoof_vaja", attacks)
 
+    def test_collect_audio_detects_f0_attack_folders(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            touch(root / "F0_10" / "f0_10_1" / "f0_10_thai0001.wav")
+            touch(root / "f0_10_2" / "f0_10_thai0002.wav")
+
+            items = collect_audio(root)
+
+        self.assertEqual(len(items), 2)
+        self.assertEqual([item.label for item in items], ["spoof", "spoof"])
+        self.assertEqual({item.attack_type for item in items}, {"f0_10"})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,0 +1,16 @@
+{
+  "preset": "high_perf",
+  "data_root": "data/raw",
+  "out_dir": "ThaiSpoof/runs/lfcc_multi_attack_high_perf",
+  "feature": "lfcc",
+  "model": "resnet_lite",
+  "spoof_attacks": ["corpus_spoof_vaja", "f0_10"],
+  "train_genuine": 3000,
+  "train_spoof": 3000,
+  "test_genuine": 1500,
+  "test_spoof": 1500,
+  "dim_x": 256,
+  "batch_size": 32,
+  "epochs": 40,
+  "patience": 8
+}
