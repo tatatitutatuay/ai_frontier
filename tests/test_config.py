@@ -74,10 +74,10 @@ class ExperimentConfigTest(unittest.TestCase):
         self.assertEqual(cfg.batch_size, 4)
         self.assertEqual(cfg.epochs, 2)
 
-    def test_config_defaults_to_restructured_raw_data_folder(self):
+    def test_config_defaults_to_local_data_folder(self):
         cfg = resolve_experiment_config(preset_name="smoke")
 
-        self.assertEqual(cfg.data_root, Path("data/raw"))
+        self.assertEqual(cfg.data_root, Path("data"))
 
     def test_json_config_overrides_preset(self):
         with tempfile.TemporaryDirectory() as tmp:

@@ -1,10 +1,10 @@
 {
   "preset": "mac_small",
-  "data_root": "data/raw",
-  "out_dir": "ThaiSpoof/runs/lfcc_f0_10_mac",
+  "data_root": "data",
+  "out_dir": "ThaiSpoof/runs/lfcc_f0_40_mac",
   "feature": "lfcc",
   "model": "small_cnn",
-  "spoof_attack": "f0_10",
+  "spoof_attack": "f0_40",
   "train_genuine": 1000,
   "train_spoof": 1000,
   "test_genuine": 500,

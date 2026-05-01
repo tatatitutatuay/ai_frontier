@@ -5,7 +5,7 @@ This repository contains a compact Thai voice anti-spoofing experiment for a bio
 ## Structure
 
 ```text
-data/raw/              # ignored raw audio datasets
+data/                  # ignored raw audio datasets
 ThaiSpoof/project/     # active runnable Python pipeline
 ThaiSpoof/configs/     # editable experiment configs
 ThaiSpoof/reports/     # final report and report template
@@ -43,10 +43,16 @@ Run the Mac-sized baseline:
 python -m ThaiSpoof.project.run_experiment --preset mac_small --stage all
 ```
 
-Run the harder F0-10 spoof experiment on this Mac:
+Run the harder F0-40 spoof experiment on this Mac:
 
 ```bash
-python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/f0_10_mac.json --stage all
+python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/f0_40_mac.json --stage all
+```
+
+Run the 1,200-file AI For Thai subset from the expanded local folders:
+
+```bash
+python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/aiforthai_lfcc_small_cnn_1200.json --stage all
 ```
 
 Run the Mac-sized multi-attack experiment:
@@ -61,10 +67,10 @@ Run the high-performance config:
 python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/high_perf.json --stage all
 ```
 
-Run the larger F0-10 config on a high-performance machine:
+Run the larger F0-40 config on a high-performance machine:
 
 ```bash
-python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/f0_10_high_perf.json --stage all
+python -m ThaiSpoof.project.run_experiment --config ThaiSpoof/configs/f0_40_high_perf.json --stage all
 ```
 
 Run the larger multi-attack config on a high-performance machine:

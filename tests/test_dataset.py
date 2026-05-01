@@ -6,7 +6,9 @@ from ThaiSpoof.project.dataset import (
     collect_audio,
     read_manifest,
     split_balanced,
+    split_balanced_by_spoof_attack,
     summarize_splits,
+    utterance_group_id,
     write_manifest,
 )
 
@@ -83,15 +85,19 @@ class DatasetTest(unittest.TestCase):
     def test_collect_audio_detects_current_workspace_layout_names(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
-            touch(root / "genuine" / "G1" / "thai0001.wav")
+            touch(root / "Corpus-Spoof-genuine" / "genuine" / "G1" / "thai0001.wav")
             touch(root / "Corpus-Spoof-VAJA" / "Train" / "thai_000001.wav")
+            touch(root / "Corpus-Spoof-F0_40" / "F0_40" / "f0_40_1" / "f0_40_thai0001.wav")
+            touch(root / "Corpus-Spoof-F0_160_new" / "f0_160_1" / "f0_160_thai0001.wav")
 
             items = collect_audio(root)
 
         labels = sorted(item.label for item in items)
         attacks = sorted(item.attack_type for item in items)
-        self.assertEqual(labels, ["genuine", "spoof"])
+        self.assertEqual(labels, ["genuine", "spoof", "spoof", "spoof"])
         self.assertIn("corpus_spoof_vaja", attacks)
+        self.assertIn("f0_40", attacks)
+        self.assertIn("f0_160", attacks)
 
     def test_collect_audio_detects_f0_attack_folders(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -104,6 +110,59 @@ class DatasetTest(unittest.TestCase):
         self.assertEqual(len(items), 2)
         self.assertEqual([item.label for item in items], ["spoof", "spoof"])
         self.assertEqual({item.attack_type for item in items}, {"f0_10"})
+
+    def test_collect_audio_skips_macos_metadata_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            touch(root / "Corpus-Spoof-genuine" / "genuine" / "G4" / "thai3094.wav")
+            touch(root / "Corpus-Spoof-genuine" / "__MACOSX" / "genuine" / "G4" / "._thai3094.wav")
+
+            items = collect_audio(root)
+
+        self.assertEqual(len(items), 1)
+        self.assertEqual(items[0].path.name, "thai3094.wav")
+
+    def test_utterance_group_id_matches_genuine_and_spoof_variants(self):
+        paths = [
+            Path("thai0001.wav"),
+            Path("thai_000001.wav"),
+            Path("f0_40_thai0001.wav"),
+            Path("f0_160_thai0001.wav"),
+        ]
+
+        self.assertEqual({utterance_group_id(path) for path in paths}, {"thai0001"})
+
+    def test_split_balanced_keeps_related_utterances_on_same_side(self):
+        items = [
+            type("Item", (), {"label": "genuine", "path": Path("thai0001.wav"), "attack_type": "genuine"})(),
+            type("Item", (), {"label": "spoof", "path": Path("thai_000001.wav"), "attack_type": "corpus_spoof_vaja"})(),
+            type("Item", (), {"label": "spoof", "path": Path("f0_40_thai0001.wav"), "attack_type": "f0_40"})(),
+            type("Item", (), {"label": "genuine", "path": Path("thai0002.wav"), "attack_type": "genuine"})(),
+            type("Item", (), {"label": "spoof", "path": Path("thai_000002.wav"), "attack_type": "corpus_spoof_vaja"})(),
+            type("Item", (), {"label": "spoof", "path": Path("f0_40_thai0002.wav"), "attack_type": "f0_40"})(),
+        ]
+
+        splits = split_balanced_by_spoof_attack(
+            items,
+            train_genuine=1,
+            test_genuine=1,
+            train_spoof=2,
+            test_spoof=2,
+            spoof_attacks=["corpus_spoof_vaja", "f0_40"],
+            seed=3,
+        )
+
+        train_groups = {
+            utterance_group_id(item.path)
+            for split in ("train_genuine", "train_spoof")
+            for item in splits[split]
+        }
+        test_groups = {
+            utterance_group_id(item.path)
+            for split in ("test_genuine", "test_spoof")
+            for item in splits[split]
+        }
+        self.assertTrue(train_groups.isdisjoint(test_groups))
 
 
 if __name__ == "__main__":

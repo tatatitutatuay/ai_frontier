@@ -98,3 +98,5 @@ pip-wheel-metadata/
 
 ThaiSpoof/reports/*
 ThaiSpoof/reports/!*.tex
+ThaiSpoof/presentation/workspace/node_modules
+ThaiSpoof/presentation

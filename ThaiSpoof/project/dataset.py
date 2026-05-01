@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import csv
+from collections import defaultdict
 import random
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -41,12 +43,15 @@ def normalize_token(value: str) -> str:
     return value.strip().replace("-", "_").replace(" ", "_").lower()
 
 
+def _is_metadata_path(path: Path) -> bool:
+    parts = {normalize_token(part) for part in path.parts}
+    return "__macosx" in parts or any(part.startswith("._") for part in path.parts)
+
+
 def _canonical_spoof_attack(token: str) -> str | None:
-    if token == "f0" or token.startswith("f0_"):
-        parts = token.split("_")
-        if len(parts) >= 2 and parts[1].isdigit():
-            return f"f0_{parts[1]}"
-        return token
+    f0_match = re.search(r"(?:^|_)f0_(\d+)(?:_|$)", token)
+    if f0_match:
+        return f"f0_{f0_match.group(1)}"
     if token.startswith("pitch_shift") or token.startswith("pitchshift"):
         return token
     if token.startswith("speed_change") or token.startswith("speedchange"):
@@ -55,16 +60,18 @@ def _canonical_spoof_attack(token: str) -> str | None:
 
 
 def _label_from_parts(parts: Iterable[str]) -> tuple[str | None, str | None]:
-    for part in parts:
-        token = normalize_token(part)
+    normalized = [normalize_token(part) for part in parts]
+    for token in normalized:
         spoof_attack = _canonical_spoof_attack(token)
         if spoof_attack:
             return "spoof", spoof_attack
+
+    for token in normalized:
         for label, aliases in CLASS_ALIASES.items():
             if token in aliases:
                 return label, token
         if "genuine" in token or "bona_fide" in token or "bonafide" in token:
-            return "genuine", token
+            return "genuine", "genuine"
         if "spoof" in token or "synthetic" in token or "fake" in token:
             return "spoof", token
     return None, None
@@ -79,6 +86,8 @@ def collect_audio(root: Path) -> list[AudioItem]:
     for path in sorted(root.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in AUDIO_EXTENSIONS:
             continue
+        if _is_metadata_path(path):
+            continue
         label, attack_type = _label_from_parts(path.relative_to(root).parts)
         if label is None:
             continue
@@ -86,28 +95,90 @@ def collect_audio(root: Path) -> list[AudioItem]:
     return items
 
 
-def _choose_train_test(pool: list[AudioItem], train_count: int, test_count: int, rng: random.Random) -> tuple[list[AudioItem], list[AudioItem]]:
-    shuffled = list(pool)
+def utterance_group_id(path: Path) -> str:
+    """Return the base utterance ID shared by genuine and spoof variants."""
+    stem = normalize_token(Path(path).stem)
+    stem = re.sub(r"^f0_\d+_", "", stem)
+
+    thai_match = re.search(r"thai_?0*(\d+)", stem)
+    if thai_match:
+        return f"thai{int(thai_match.group(1)):04d}"
+
+    collapsed = re.sub(r"[^a-z0-9]+", "", stem)
+    return collapsed or stem
+
+
+def _group_key(item: AudioItem) -> str:
+    return utterance_group_id(item.path)
+
+
+def _group_category(rows: list[AudioItem]) -> tuple[str, ...]:
+    labels = {item.label for item in rows}
+    attacks = sorted({item.attack_type for item in rows if item.label == "spoof"})
+    if labels == {"genuine"}:
+        return ("genuine",)
+    if labels == {"spoof"}:
+        return ("spoof", *attacks)
+    return ("mixed", *attacks)
+
+
+def _split_keys_by_ratio(keys: list[str], ratio: float, rng: random.Random) -> tuple[set[str], set[str]]:
+    shuffled = list(keys)
     rng.shuffle(shuffled)
-
-    requested = train_count + test_count
-    if len(shuffled) >= requested:
-        return shuffled[:train_count], shuffled[train_count:requested]
-
     if not shuffled:
-        return [], []
+        return set(), set()
 
-    ratio = train_count / requested
-    scaled_train = round(len(shuffled) * ratio)
-    scaled_train = max(1, scaled_train) if train_count > 0 else 0
-    scaled_train = min(scaled_train, len(shuffled))
-    scaled_test = len(shuffled) - scaled_train
+    train_count = round(len(shuffled) * ratio)
+    if ratio > 0 and train_count == 0:
+        train_count = 1
+    if ratio < 1 and train_count == len(shuffled) and len(shuffled) > 1:
+        train_count -= 1
 
-    if test_count > 0 and scaled_test == 0 and len(shuffled) > 1:
-        scaled_train -= 1
-        scaled_test = 1
+    return set(shuffled[:train_count]), set(shuffled[train_count:])
 
-    return shuffled[:scaled_train], shuffled[scaled_train:scaled_train + scaled_test]
+
+def _split_group_keys(
+    items: list[AudioItem],
+    train_genuine: int,
+    test_genuine: int,
+    train_spoof: int,
+    test_spoof: int,
+    rng: random.Random,
+) -> tuple[set[str], set[str]]:
+    grouped: dict[str, list[AudioItem]] = defaultdict(list)
+    for item in items:
+        grouped[_group_key(item)].append(item)
+
+    categories: dict[tuple[str, ...], list[str]] = defaultdict(list)
+    for key, rows in grouped.items():
+        categories[_group_category(rows)].append(key)
+
+    genuine_ratio = train_genuine / (train_genuine + test_genuine)
+    spoof_ratio = train_spoof / (train_spoof + test_spoof)
+    overall_ratio = (train_genuine + train_spoof) / (
+        train_genuine + test_genuine + train_spoof + test_spoof
+    )
+
+    train_keys: set[str] = set()
+    test_keys: set[str] = set()
+    for category, keys in categories.items():
+        if category[0] == "genuine":
+            ratio = genuine_ratio
+        elif category[0] == "spoof":
+            ratio = spoof_ratio
+        else:
+            ratio = overall_ratio
+        category_train, category_test = _split_keys_by_ratio(keys, ratio, rng)
+        train_keys.update(category_train)
+        test_keys.update(category_test)
+
+    return train_keys, test_keys
+
+
+def _take_from_keys(pool: list[AudioItem], keys: set[str], count: int, rng: random.Random) -> list[AudioItem]:
+    candidates = [item for item in pool if _group_key(item) in keys]
+    rng.shuffle(candidates)
+    return candidates[: min(count, len(candidates))]
 
 
 def _allocate_counts(total: int, bucket_count: int) -> list[int]:
@@ -132,8 +203,18 @@ def split_balanced(
         raise ValueError("no spoof audio files were found")
 
     rng = random.Random(seed)
-    train_g, test_g = _choose_train_test(genuine, train_genuine, test_genuine, rng)
-    train_s, test_s = _choose_train_test(spoof, train_spoof, test_spoof, rng)
+    train_keys, test_keys = _split_group_keys(
+        items,
+        train_genuine=train_genuine,
+        test_genuine=test_genuine,
+        train_spoof=train_spoof,
+        test_spoof=test_spoof,
+        rng=rng,
+    )
+    train_g = _take_from_keys(genuine, train_keys, train_genuine, rng)
+    test_g = _take_from_keys(genuine, test_keys, test_genuine, rng)
+    train_s = _take_from_keys(spoof, train_keys, train_spoof, rng)
+    test_s = _take_from_keys(spoof, test_keys, test_spoof, rng)
 
     return {
         "train_genuine": train_g,
@@ -161,7 +242,16 @@ def split_balanced_by_spoof_attack(
         raise ValueError("no genuine audio files were found")
 
     rng = random.Random(seed)
-    train_g, test_g = _choose_train_test(genuine, train_genuine, test_genuine, rng)
+    train_keys, test_keys = _split_group_keys(
+        items,
+        train_genuine=train_genuine,
+        test_genuine=test_genuine,
+        train_spoof=train_spoof,
+        test_spoof=test_spoof,
+        rng=rng,
+    )
+    train_g = _take_from_keys(genuine, train_keys, train_genuine, rng)
+    test_g = _take_from_keys(genuine, test_keys, test_genuine, rng)
     train_s: list[AudioItem] = []
     test_s: list[AudioItem] = []
     train_allocations = _allocate_counts(train_spoof, len(attacks))
@@ -171,7 +261,8 @@ def split_balanced_by_spoof_attack(
         pool = [item for item in items if item.label == "spoof" and item.attack_type == attack]
         if not pool:
             raise ValueError(f"no spoof audio files were found for attack/source: {attack}")
-        attack_train, attack_test = _choose_train_test(pool, train_count, test_count, rng)
+        attack_train = _take_from_keys(pool, train_keys, train_count, rng)
+        attack_test = _take_from_keys(pool, test_keys, test_count, rng)
         train_s.extend(attack_train)
         test_s.extend(attack_test)
 

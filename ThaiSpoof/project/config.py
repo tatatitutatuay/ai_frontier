@@ -207,5 +207,5 @@ def resolve_experiment_config(
         values.update(file_values)
 
     values.update(_clean_overrides(overrides))
-    values.setdefault("data_root", Path("data/raw"))
+    values.setdefault("data_root", Path("data"))
     return ExperimentConfig(**values)

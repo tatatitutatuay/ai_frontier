@@ -1,6 +1,6 @@
 {
   "preset": "high_perf",
-  "data_root": "data/raw",
+  "data_root": "data",
   "out_dir": "ThaiSpoof/runs/lfcc_high_perf",
   "feature": "lfcc",
   "model": "resnet_lite",

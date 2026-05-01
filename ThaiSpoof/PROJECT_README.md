@@ -22,20 +22,27 @@ The older scripts are grouped under `ThaiSpoof/legacy/` as reference material.
 
 Download ThaiSpoof from AI For Thai and place/extract it somewhere on your machine or Google Drive. I cannot complete that download automatically because it requires your AI For Thai account/session.
 
-This workspace currently keeps raw audio under `data/raw/`:
+This workspace currently keeps raw audio under `data/`:
 
 ```text
 ai_frontier/
   data/
-    raw/
+    Corpus-Spoof-genuine/
       genuine/
         G1/
           *.wav
-      Corpus-Spoof-VAJA/
-        Train/
+    Corpus-Spoof-VAJA/
+      Train/
+        *.wav
+      Test/
+        *.wav
+    Corpus-Spoof-F0_40/
+      F0_40/
+        f0_40_*/
           *.wav
-        Test/
-          *.wav
+    Corpus-Spoof-F0_160_new/
+      f0_160_*/
+        *.wav
 ```
 
 The pipeline searches recursively and detects classes from folder names. These names work:
@@ -153,7 +160,7 @@ Edit `ThaiSpoof/configs/high_perf.json` when running on a stronger computer. The
 ```json
 {
   "preset": "high_perf",
-  "data_root": "data/raw",
+  "data_root": "data",
   "out_dir": "ThaiSpoof/runs/lfcc_high_perf",
   "feature": "lfcc",
   "model": "resnet_lite",

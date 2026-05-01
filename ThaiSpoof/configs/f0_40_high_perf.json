@@ -1,10 +1,10 @@
 {
   "preset": "high_perf",
-  "data_root": "data/raw",
-  "out_dir": "ThaiSpoof/runs/lfcc_f0_10_high_perf",
+  "data_root": "data",
+  "out_dir": "ThaiSpoof/runs/lfcc_f0_40_high_perf",
   "feature": "lfcc",
   "model": "resnet_lite",
-  "spoof_attack": "f0_10",
+  "spoof_attack": "f0_40",
   "train_genuine": 3000,
   "train_spoof": 3000,
   "test_genuine": 1500,

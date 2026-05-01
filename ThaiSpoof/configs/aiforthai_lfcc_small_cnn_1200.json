@@ -1,0 +1,18 @@
+{
+  "data_root": "data",
+  "out_dir": "ThaiSpoof/runs/aiforthai_lfcc_small_cnn_1200",
+  "feature": "lfcc",
+  "model": "small_cnn",
+  "spoof_attacks": ["corpus_spoof_vaja", "f0_40", "f0_160"],
+  "train_genuine": 510,
+  "train_spoof": 504,
+  "test_genuine": 90,
+  "test_spoof": 96,
+  "dim_x": 128,
+  "dim_y": 60,
+  "batch_size": 8,
+  "epochs": 30,
+  "validation_fraction": 0.2,
+  "learning_rate": 0.0001,
+  "patience": 6
+}

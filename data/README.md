@@ -1,13 +1,15 @@
 # Data
 
-Place raw audio datasets under `data/raw/`.
+Place raw audio datasets under `data/`.
 
 Expected local layout:
 
 ```text
-data/raw/
-  genuine/
+data/
+  Corpus-Spoof-genuine/
+  Corpus-Spoof-F0_40/
+  Corpus-Spoof-F0_160_new/
   Corpus-Spoof-VAJA/
 ```
 
-`data/raw/` is ignored by git because it contains large audio files.
+`data/` is ignored by git because it contains large audio files.
