@@ -7,6 +7,7 @@ from pathlib import Path
 
 from ThaiSpoof.project.config import CONFIG_FIELDS, ExperimentConfig, PRESETS, SUPPORTED_FEATURES, SUPPORTED_MODELS, resolve_experiment_config
 from ThaiSpoof.project.dataset import collect_audio, read_manifest, split_balanced, split_balanced_by_spoof_attack, summarize_splits, write_manifest
+from ThaiSpoof.project.evaluate import evaluate_finished_model
 from ThaiSpoof.project.features import feature_groups_exist, save_feature_groups
 from ThaiSpoof.project.train import run_training
 
@@ -15,7 +16,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Run a compact ThaiSpoof anti-spoofing experiment.")
     parser.add_argument("--data-root", type=Path, default=None, help="Folder containing ThaiSpoof audio files.")
     parser.add_argument("--out-dir", type=Path, default=None)
-    parser.add_argument("--stage", choices=["summary", "split", "extract", "train", "all"], default="all")
+    parser.add_argument("--stage", choices=["summary", "split", "extract", "train", "evaluate", "all"], default="all")
     parser.add_argument("--preset", choices=sorted(PRESETS), default=None, help="Hardware-sized experiment preset.")
     parser.add_argument("--config", type=Path, default=None, help="JSON config file.")
     parser.add_argument("--force-split", action="store_true", help="Rebuild the manifest even if it already exists.")
@@ -154,6 +155,11 @@ def main() -> None:
 
     if args.stage == "split":
         create_or_load_splits(config, force_create=True or args.force_split)
+        return
+
+    if args.stage == "evaluate":
+        metrics_path = evaluate_finished_model(config)
+        logging.info("Evaluation complete. Metrics: %s", metrics_path)
         return
 
     if args.stage in {"extract", "all"}:

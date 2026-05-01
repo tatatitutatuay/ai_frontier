@@ -6,7 +6,8 @@ from pathlib import Path
 
 import numpy as np
 
-from ThaiSpoof.project.evaluate import evaluate_model_on_attack_from_feature_dir, evaluate_model_on_feature_dir
+from ThaiSpoof.project.config import ExperimentConfig
+from ThaiSpoof.project.evaluate import evaluate_finished_model, evaluate_model_on_attack_from_feature_dir, evaluate_model_on_feature_dir
 
 
 class FakeModel:
@@ -91,6 +92,81 @@ class EvaluateTest(unittest.TestCase):
         self.assertEqual(result.genuine_count, 2)
         self.assertEqual(result.spoof_count, 2)
         self.assertEqual((result.metrics.tn, result.metrics.fp, result.metrics.fn, result.metrics.tp), (2, 0, 0, 2))
+
+    def test_evaluate_finished_model_writes_overall_and_attack_rows(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cfg = ExperimentConfig(
+                data_root=root / "data",
+                out_dir=root / "run",
+                spoof_attacks=["corpus_spoof_vaja", "f0_40", "f0_160"],
+                dim_x=2,
+                dim_y=2,
+            )
+            genuine = [np.zeros((2, 2), dtype=np.float32), np.ones((2, 2), dtype=np.float32)]
+            spoof = [
+                np.full((2, 2), 2, dtype=np.float32),
+                np.full((2, 2), 3, dtype=np.float32),
+                np.full((2, 2), 4, dtype=np.float32),
+            ]
+            write_pickle(cfg.feature_dir / "LFCC_Test_genuine_2.pkl", genuine)
+            write_pickle(cfg.feature_dir / "LFCC_Test_spoof_3.pkl", spoof)
+            write_index(
+                cfg.feature_dir / "INDEX_Test_spoof_3.csv",
+                [
+                    {"path": "a.wav", "label": "spoof", "attack_type": "corpus_spoof_vaja", "frames": 2, "dims": 2},
+                    {"path": "b.wav", "label": "spoof", "attack_type": "f0_40", "frames": 2, "dims": 2},
+                    {"path": "c.wav", "label": "spoof", "attack_type": "f0_160", "frames": 2, "dims": 2},
+                ],
+            )
+            model_path = cfg.model_dir / "lfcc_small_cnn.keras"
+            model_path.parent.mkdir(parents=True, exist_ok=True)
+            model_path.write_text("fake model", encoding="utf-8")
+
+            metrics_path = evaluate_finished_model(
+                cfg,
+                model_loader=lambda path: FakeModel(scores=[0.1, 0.2, 0.7, 0.8, 0.9]),
+            )
+            with metrics_path.open("r", newline="", encoding="utf-8") as handle:
+                rows = list(csv.DictReader(handle))
+
+        self.assertEqual(
+            list(rows[0]),
+            [
+                "name",
+                "split",
+                "genuine_count",
+                "spoof_count",
+                "tn",
+                "fp",
+                "fn",
+                "tp",
+                "accuracy",
+                "balanced_accuracy",
+                "precision",
+                "recall",
+                "f1",
+                "eer",
+                "eer_threshold",
+                "mean_genuine_score",
+                "mean_spoof_score",
+            ],
+        )
+        self.assertEqual([row["name"] for row in rows], ["overall", "corpus_spoof_vaja", "f0_40", "f0_160"])
+        self.assertEqual([row["genuine_count"] for row in rows], ["2", "2", "2", "2"])
+        self.assertEqual([row["spoof_count"] for row in rows], ["3", "1", "1", "1"])
+
+    def test_evaluate_finished_model_fails_when_saved_model_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            cfg = ExperimentConfig(
+                data_root=root / "data",
+                out_dir=root / "run",
+                spoof_attacks=["corpus_spoof_vaja", "f0_40", "f0_160"],
+            )
+
+            with self.assertRaises(FileNotFoundError):
+                evaluate_finished_model(cfg, model_loader=lambda path: FakeModel())
 
 
 if __name__ == "__main__":

@@ -92,9 +92,81 @@ def _metrics_row(split: str, metrics: BinaryMetrics) -> dict[str, str | int | fl
     }
 
 
+def _attack_metrics_row(
+    split: str,
+    attack_type: str,
+    genuine_count: int,
+    spoof_count: int,
+    metrics: BinaryMetrics,
+) -> dict[str, str | int | float]:
+    return {
+        "split": split,
+        "attack_type": attack_type,
+        "genuine_count": genuine_count,
+        "spoof_count": spoof_count,
+        "tn": metrics.tn,
+        "fp": metrics.fp,
+        "fn": metrics.fn,
+        "tp": metrics.tp,
+        "accuracy": metrics.accuracy,
+        "balanced_accuracy": metrics.balanced_accuracy,
+        "precision": metrics.precision,
+        "recall": metrics.recall,
+        "f1": metrics.f1,
+        "eer": metrics.eer,
+        "eer_threshold": metrics.eer_threshold,
+    }
+
+
 def _evaluate_model(model, x, y) -> BinaryMetrics:
     scores = model.predict(x, batch_size=64, verbose=0).reshape(-1).tolist()
     return calculate_binary_metrics(y.astype(int).tolist(), [float(score) for score in scores])
+
+
+def _find_index_csv(feature_dir: Path, split: str, label: str) -> Path:
+    pattern = f"INDEX_{split}_{label}_*.csv"
+    matches = sorted(Path(feature_dir).glob(pattern))
+    if not matches:
+        raise FileNotFoundError(f"no index file matched {pattern} in {feature_dir}")
+    return matches[-1]
+
+
+def _read_attack_types(feature_dir: Path, split: str, label: str) -> list[str]:
+    index_path = _find_index_csv(feature_dir, split, label)
+    with index_path.open("r", newline="", encoding="utf-8") as handle:
+        return [row.get("attack_type") or label for row in csv.DictReader(handle)]
+
+
+def _evaluate_attack_metrics(
+    model,
+    genuine,
+    spoof,
+    spoof_attack_types: list[str],
+    dim_x: int,
+    dim_y: int,
+    split: str = "test",
+) -> list[dict[str, str | int | float]]:
+    if len(spoof) != len(spoof_attack_types):
+        raise ValueError("spoof feature count must match spoof index count")
+
+    rows = []
+    for attack_type in sorted(set(spoof_attack_types)):
+        selected_spoof = [
+            feature_row
+            for feature_row, row_attack_type in zip(spoof, spoof_attack_types)
+            if row_attack_type == attack_type
+        ]
+        x_attack, y_attack = _prepare_xy(genuine, selected_spoof, dim_x, dim_y)
+        rows.append(
+            _attack_metrics_row(
+                split=split,
+                attack_type=attack_type,
+                genuine_count=len(genuine),
+                spoof_count=len(selected_spoof),
+                metrics=_evaluate_model(model, x_attack, y_attack),
+            )
+        )
+    return rows
 
 
 def _write_metrics(path: Path, rows: list[dict[str, str | int | float]]) -> None:
@@ -165,10 +237,24 @@ def run_training(config: ExperimentConfig) -> Path:
     metrics_path = config.results_dir / f"{config.feature}_{config.model}_metrics.csv"
     _write_metrics(metrics_path, rows)
 
+    attack_metrics_path = config.results_dir / f"{config.feature}_{config.model}_attack_metrics.csv"
+    test_spoof_attack_types = _read_attack_types(config.feature_dir, "Test", "spoof")
+    attack_rows = _evaluate_attack_metrics(
+        model,
+        genuine=test_g,
+        spoof=test_s,
+        spoof_attack_types=test_spoof_attack_types,
+        dim_x=config.dim_x,
+        dim_y=config.dim_y,
+        split="test",
+    )
+    _write_metrics(attack_metrics_path, attack_rows)
+
     with (config.results_dir / f"{config.feature}_{config.model}_summary.md").open("w", encoding="utf-8") as handle:
         handle.write(f"# ThaiSpoof {config.feature.upper()} {config.model} Summary\n\n")
         handle.write(f"- Model file: `{model_path}`\n")
         handle.write(f"- Metrics file: `{metrics_path}`\n")
+        handle.write(f"- Attack metrics file: `{attack_metrics_path}`\n")
         handle.write(f"- Train samples: {len(y_train)}\n")
         handle.write(f"- Validation samples: {len(y_val)}\n")
         handle.write(f"- Test samples: {len(y_test)}\n")

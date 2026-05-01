@@ -27,6 +27,12 @@ class RunExperimentCliTest(unittest.TestCase):
         self.assertEqual(args.preset, "smoke")
         self.assertEqual(args.stage, "summary")
 
+    def test_parser_accepts_evaluate_stage(self):
+        args = build_parser().parse_args(["--data-root", ".", "--stage", "evaluate"])
+
+        self.assertEqual(args.data_root, Path("."))
+        self.assertEqual(args.stage, "evaluate")
+
     def test_build_config_overrides_ignores_non_config_arguments_and_none_values(self):
         args = build_parser().parse_args(
             [

@@ -4,6 +4,7 @@ import csv
 from dataclasses import dataclass
 from pathlib import Path
 
+from ThaiSpoof.project.config import ExperimentConfig
 from ThaiSpoof.project.metrics import BinaryMetrics, calculate_binary_metrics
 from ThaiSpoof.project.train import _find_feature_pickle, _prepare_xy, load_pickle_list
 
@@ -158,3 +159,93 @@ def write_evaluation_outputs(
         encoding="utf-8",
     )
     return metrics_path
+
+
+def simple_evaluation_row(result: EvaluationResult) -> dict[str, str | int | float]:
+    return {
+        "name": result.name,
+        "split": result.split,
+        "genuine_count": result.genuine_count,
+        "spoof_count": result.spoof_count,
+        "tn": result.metrics.tn,
+        "fp": result.metrics.fp,
+        "fn": result.metrics.fn,
+        "tp": result.metrics.tp,
+        "accuracy": result.metrics.accuracy,
+        "balanced_accuracy": result.metrics.balanced_accuracy,
+        "precision": result.metrics.precision,
+        "recall": result.metrics.recall,
+        "f1": result.metrics.f1,
+        "eer": result.metrics.eer,
+        "eer_threshold": result.metrics.eer_threshold,
+        "mean_genuine_score": result.mean_genuine_score,
+        "mean_spoof_score": result.mean_spoof_score,
+    }
+
+
+def write_evaluation_table(results: list[EvaluationResult], path: Path) -> Path:
+    if not results:
+        raise ValueError("at least one evaluation result is required")
+
+    rows = [simple_evaluation_row(result) for result in results]
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(rows[0].keys()))
+        writer.writeheader()
+        writer.writerows(rows)
+    return path
+
+
+def _model_path(config: ExperimentConfig) -> Path:
+    return config.model_dir / f"{config.feature}_{config.model}.keras"
+
+
+def _configured_or_indexed_attacks(config: ExperimentConfig) -> list[str]:
+    if config.spoof_attacks:
+        return list(config.spoof_attacks)
+    if config.spoof_attack:
+        return [config.spoof_attack]
+
+    index_path = _find_index_csv(config.feature_dir, "Test", "spoof")
+    rows = _read_index_rows(index_path)
+    return sorted({row.get("attack_type") or "spoof" for row in rows})
+
+
+def evaluate_finished_model(config: ExperimentConfig, model_loader=None) -> Path:
+    model_path = _model_path(config)
+    if not model_path.exists():
+        raise FileNotFoundError(f"trained model does not exist: {model_path}")
+
+    if model_loader is None:
+        import tensorflow as tf
+
+        model_loader = tf.keras.models.load_model
+
+    model = model_loader(str(model_path))
+    results = [
+        evaluate_model_on_feature_dir(
+            model,
+            feature_dir=config.feature_dir,
+            feature=config.feature,
+            dim_x=config.dim_x,
+            dim_y=config.dim_y,
+            split="Test",
+            name="overall",
+        )
+    ]
+    for attack_type in _configured_or_indexed_attacks(config):
+        results.append(
+            evaluate_model_on_attack_from_feature_dir(
+                model,
+                feature_dir=config.feature_dir,
+                feature=config.feature,
+                attack_type=attack_type,
+                dim_x=config.dim_x,
+                dim_y=config.dim_y,
+                split="Test",
+            )
+        )
+
+    output_path = config.results_dir / f"{config.feature}_{config.model}_evaluate_metrics.csv"
+    return write_evaluation_table(results, output_path)
